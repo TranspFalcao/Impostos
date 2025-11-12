@@ -1,22 +1,19 @@
 <!DOCTYPE html>
-<html lang='pt-BR'>
+<html lang="pt-BR">
 <head>
-<meta charset='UTF-8'>
-<meta name='viewport' content='width=device-width, initial-scale=1.0'>
-<title>Impostos</title>
-<link rel='stylesheet' href='style.css'>
-<script src='https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js'></script>
-<script src='https://cdn.jsdelivr.net/npm/chart.js'></script>
-<script src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Impostos - Transportadora Falcão Ltda</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 <header>
-    <div class='header-container'>
-        <img src='logo_falcao_transparente.png' alt='Logo' class='logo'>
-        <nav class='menu'>
+    <div class="header-container">
+        <img src="logo_falcao_transparente.png" alt="Logo" class="logo">
+        <nav class="menu">
             <ul>
-                <li class='ativo'>Menu</li>
-                <li class='ativo'>Impostos</li>
+                <li class="ativo">Impostos</li>
                 <li>Agenda Tributária</li>
                 <li>Controle de CND</li>
             </ul>
@@ -24,95 +21,155 @@
     </div>
 </header>
 <main>
-    <h1><u><strong>Impostos</strong></u></h1>
-    <div class='filtros'>
-        <label>Unidade:</label>
-        <select id='filtroUnidade'><option value=''>Todas</option></select>
-        <label>Ano:</label>
-        <select id='filtroAno'><option value=''>Todos</option></select>
-        <label>Tipo:</label>
-        <select id='filtroTipo'><option value=''>Todos</option></select>
-        <button id='btnPDF'>Baixar PDF</button>
-        <button onclick='window.print()'>Imprimir</button>
+    <h1>Impostos</h1>
+    <div class="filtros">
+        <label>Unidade: <select id="filtroUnidade"></select></label>
+        <label>Ano: <select id="filtroAno"></select></label>
+        <label>Tipo: <select id="filtroTipo"></select></label>
+        <button onclick="imprimirPagina()">Imprimir</button>
+        <button onclick="baixarPDF()">Baixar PDF</button>
     </div>
-    <canvas id='grafico'></canvas>
-    <table id='tabela'>
+    <div id="mensagemErro" style="color:red; font-weight:bold;"></div>
+    <canvas id="grafico" height="100"></canvas>
+    <table id="tabela">
         <thead>
-            <tr><th>UNIDADE</th><th>UF</th><th>MÊS</th><th>ANO</th><th>TIPO</th><th>VALOR</th></tr>
+            <tr>
+                <th>UNIDADE</th>
+                <th>UF</th>
+                <th>MÊS</th>
+                <th>ANO</th>
+                <th>TIPO</th>
+                <th>VALOR</th>
+            </tr>
         </thead>
         <tbody></tbody>
     </table>
 </main>
 <script>
-Papa.parse('plan6_convertido.csv', {
-    download: true,
-    header: true,
-    complete: function(results) {
-        const dados = results.data;
-        const filtroUnidade = document.getElementById('filtroUnidade');
-        const filtroAno = document.getElementById('filtroAno');
-        const filtroTipo = document.getElementById('filtroTipo');
-        const tbody = document.querySelector('#tabela tbody');
-        const ctx = document.getElementById('grafico').getContext('2d');
-        let grafico;
-
-        [...new Set(dados.map(d => d.UNIDADE))].forEach(u => filtroUnidade.innerHTML += `<option value="${u}">${u}</option>`);
-        [...new Set(dados.map(d => d.ANO))].forEach(a => filtroAno.innerHTML += `<option value="${a}">${a}</option>`);
-        [...new Set(dados.map(d => d.TIPO))].forEach(t => filtroTipo.innerHTML += `<option value="${t}">${t}</option>`);
-
-        function getFiltrados() {
-            return dados.filter(d =>
-                (filtroUnidade.value === '' || d.UNIDADE === filtroUnidade.value) &&
-                (filtroAno.value === '' || d.ANO === filtroAno.value) &&
-                (filtroTipo.value === '' || d.TIPO === filtroTipo.value)
-            );
-        }
-
-        function renderTabelaEDados() {
-            tbody.innerHTML = '';
-            const filtrados = getFiltrados();
-
-            filtrados.forEach(row => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `<td>${row.UNIDADE}</td><td>${row.UF}</td><td>${row.MÊS}</td><td>${row.ANO}</td><td>${row.TIPO}</td><td>${row.VALOR}</td>`;
-                tbody.appendChild(tr);
-            });
-
-            const meses = [...new Set(filtrados.map(d => d.MÊS))];
-            const valoresPorMes = meses.map(m => filtrados.filter(d => d.MÊS === m).reduce((acc, cur) => acc + (parseFloat(cur.VALOR) || 0), 0));
-
-            if (grafico) grafico.destroy();
-            grafico = new Chart(ctx, {
-                type: 'bar',
-                data: { labels: meses, datasets: [{ label: 'Valor', data: valoresPorMes, backgroundColor: '#000' }] },
-                options: { responsive: true, plugins: { title: { display: true, text: `${filtroUnidade.value || 'Todas'} - ${filtroAno.value || 'Todos'}` } } }
-            });
-        }
-
-        filtroUnidade.onchange = renderTabelaEDados;
-        filtroAno.onchange = renderTabelaEDados;
-        filtroTipo.onchange = renderTabelaEDados;
-        renderTabelaEDados();
-
-        document.getElementById('btnPDF').onclick = () => {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            doc.setFontSize(14);
-            doc.text('Relatório ICMS', 10, 10);
-            doc.text(`Filtros: Unidade=${filtroUnidade.value || 'Todas'}, Ano=${filtroAno.value || 'Todos'}, Tipo=${filtroTipo.value || 'Todos'}`, 10, 20);
-            const graficoImg = document.getElementById('grafico').toDataURL('image/png');
-            doc.addImage(graficoImg, 'PNG', 10, 30, 180, 80);
-            let y = 120;
-            doc.setFontSize(10);
-            getFiltrados().forEach(row => {
-                doc.text(`${row.UNIDADE} | ${row.UF} | ${row.MÊS} | ${row.ANO} | ${row.TIPO} | ${row.VALOR}`, 10, y);
-                y += 6;
-                if (y > 280) { doc.addPage(); y = 20; }
-            });
-            doc.save('relatorio_icms.pdf');
-        };
+async function carregarDados() {
+    try {
+        const response = await fetch('plan6_convertido.csv');
+        if (!response.ok) throw new Error('Arquivo CSV não encontrado.');
+        const texto = await response.text();
+        const linhas = texto.trim().split('
+');
+        const dados = linhas.slice(1)
+            .map(linha => {
+                const [unidade, uf, mes, ano, tipo, valor] = linha.split(';');
+                if (!unidade || !ano || mes === 'Saldo Inicial') return null;
+                return {
+                    unidade: unidade || '-',
+                    uf: uf || '-',
+                    mes: mes || '-',
+                    ano: ano || '-',
+                    tipo: tipo || '-',
+                    valor: valor ? valor.replace('\-', '-') : '0'
+                };
+            })
+            .filter(d => d !== null);
+        return dados;
+    } catch (error) {
+        document.getElementById('mensagemErro').textContent = `Erro: ${error.message}. Verifique se o arquivo CSV está presente.`;
+        return [];
     }
-});
+}
+
+function popularFiltros(dados) {
+    const unidades = [...new Set(dados.map(d => d.unidade))];
+    const anos = [...new Set(dados.map(d => d.ano))];
+    const tipos = [...new Set(dados.map(d => d.tipo))];
+
+    preencherSelect('filtroUnidade', unidades);
+    preencherSelect('filtroAno', anos);
+    preencherSelect('filtroTipo', tipos);
+}
+
+function preencherSelect(id, valores) {
+    const select = document.getElementById(id);
+    select.innerHTML = '<option value="">Todos</option>' + valores.map(v => `<option value="${v}">${v}</option>`).join('');
+}
+
+function aplicarFiltros(dados) {
+    const unidade = document.getElementById('filtroUnidade').value;
+    const ano = document.getElementById('filtroAno').value;
+    const tipo = document.getElementById('filtroTipo').value;
+
+    return dados.filter(d =>
+        (unidade === '' || d.unidade === unidade) &&
+        (ano === '' || d.ano === ano) &&
+        (tipo === '' || d.tipo === tipo)
+    );
+}
+
+function atualizarTabela(dados) {
+    const tbody = document.querySelector('#tabela tbody');
+    tbody.innerHTML = dados.map(d => {
+        const valorFormatado = d.valor && !isNaN(parseFloat(d.valor.replace(',', '.')))
+            ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(parseFloat(d.valor.replace(',', '.')))
+            : '-';
+        return `<tr>
+            <td>${d.unidade}</td>
+            <td>${d.uf}</td>
+            <td>${d.mes}</td>
+            <td>${d.ano}</td>
+            <td>${d.tipo}</td>
+            <td>${valorFormatado}</td>
+        </tr>`;
+    }).join('');
+}
+
+function atualizarGrafico(dados) {
+    if (dados.length === 0) {
+        document.getElementById('grafico').outerHTML = '<p style="color:red;">Nenhum dado disponível para exibir o gráfico.</p>';
+        return;
+    }
+    const ctx = document.getElementById('grafico').getContext('2d');
+    const meses = [...new Set(dados.map(d => d.mes))];
+    const valores = meses.map(m => {
+        return dados.filter(d => d.mes === m).reduce((sum, d) => sum + (parseFloat(d.valor.replace(',', '.')) || 0), 0);
+    });
+    const cores = valores.map(v => v >= 0 ? '#28a745' : '#dc3545');
+
+    if(window.graficoInstance) window.graficoInstance.destroy();
+    window.graficoInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: meses,
+            datasets: [{ label: 'Valor', data: valores, backgroundColor: cores }]
+        },
+        options: {
+            scales: { y: { beginAtZero: true } },
+            plugins: {
+                title: { display: true, text: 'Valores por Mês (Positivos e Negativos)' },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `R$ ${ctx.parsed.y.toLocaleString('pt-BR')}`
+                    }
+                }
+            }
+        }
+    });
+}
+
+function imprimirPagina() { window.print(); }
+function baixarPDF() { alert('Função de exportar para PDF será implementada.'); }
+
+(async function init() {
+    const dados = await carregarDados();
+    if (dados.length > 0) {
+        popularFiltros(dados);
+        atualizarTabela(dados);
+        atualizarGrafico(dados);
+    }
+
+    document.querySelectorAll('#filtroUnidade, #filtroAno, #filtroTipo').forEach(el => {
+        el.addEventListener('change', () => {
+            const filtrados = aplicarFiltros(dados);
+            atualizarTabela(filtrados);
+            atualizarGrafico(filtrados);
+        });
+    });
+})();
 </script>
 </body>
 </html>
