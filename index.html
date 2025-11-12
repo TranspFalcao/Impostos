@@ -55,7 +55,7 @@ async function carregarDados() {
 ');
         const dados = linhas.slice(1)
             .map(linha => {
-                const [unidade, uf, mes, ano, tipo, valor] = linha.split(';');
+                const [unidade, uf, mes, ano, tipo, valor] = linha.split(';').map(c => c.trim());
                 if (!unidade || !ano || mes === 'Saldo Inicial') return null;
                 return {
                     unidade: unidade || '-',
@@ -140,7 +140,7 @@ function atualizarGrafico(dados) {
         options: {
             scales: { y: { beginAtZero: true } },
             plugins: {
-                title: { display: true, text: 'Valores por Mês (Positivos e Negativos)' },
+                title: { display: true, text: `Valores por Mês (${document.getElementById('filtroUnidade').value || 'Todas'} - ${document.getElementById('filtroAno').value || 'Todos'})` },
                 tooltip: {
                     callbacks: {
                         label: ctx => `R$ ${ctx.parsed.y.toLocaleString('pt-BR')}`
